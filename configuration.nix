@@ -30,9 +30,16 @@
     "d /var/log/nginx 0750 nginx nginx -"
   ];
 
+  security.acme = {
+    acceptTerms = true;
+    defaults.email = "larry@maydayelectronics.com";
+  };
+
   services.nginx = {
     enable = true;
     virtualHosts."maydayelectronics.com" = {
+      enableACME = true;
+      forceSSL = true;
       locations."/" = {
         root = pkgs.writeTextDir "index.html" ''
           <!DOCTYPE html>
