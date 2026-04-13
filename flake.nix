@@ -23,18 +23,20 @@
         apps.nixos-anywhere-script.program = "${self'.packages.anywhereScript}";
         packages = {
           anywhereScript = ((pkgs.writers.writeBash "setupSff" ''
-            ${pkgs.lib.getExe pkgs.nix} run --refresh github:nix-community/nixos-anywhere -- --flake .# --target-host root@$1
+            ${pkgs.lib.getExe pkgs.nix} run --refresh github:nix-community/nixos-anywhere -- --flake .#mayday-vps --target-host root@$1
           '').overrideAttrs { pname = "nixos-anywhere-host"; });
         };
         devShells.default = pkgs.mkShell {
           buildInputs = with pkgs; [
             opentofu
             sops
+            inputs'.colmena.packages.colmena
           ];
           shellHook = ''
             echo "Exporting B2 Access Keys for OpenTofu state backend..."
             export TF_VAR_B2_STATE_ACCESS_KEY=$(${pkgs.lib.getExe pkgs.sops} -d --extract '["b2"]["tf_state"]["access_key"]' ${inputs.self}/secrets/secrets.yaml)
             export TF_VAR_B2_STATE_SECRET_KEY=$(${pkgs.lib.getExe pkgs.sops} -d --extract '["b2"]["tf_state"]["secret_key"]' ${inputs.self}/secrets/secrets.yaml)
+            export TF_VAR_ssh_public_key=$(cat ${inputs.larrySSH.outPath})
             echo "Done."
           '';
         };
@@ -42,14 +44,17 @@
       flake = {
         nixosModules = {
           mayday-vps-config = {
-            imports = [ 
+            imports = [
+              inputs.disko.nixosModules.disko
               ./configuration.nix
               ./disk-config.nix
             ];
           };
         };
-        nixosConfigurations.mayday-vps = inputs.nixpkgs.lib.nixosSystem { 
+        nixosConfigurations.mayday-vps = inputs.nixpkgs.lib.nixosSystem {
+          system = "x86_64-linux";
           modules = [
+            inputs.disko.nixosModules.disko
             ./configuration.nix
             ./disk-config.nix
             ./hardware.nix
@@ -67,12 +72,10 @@
           };
           mayday-vps = {
             deployment = {
-              targetHost = "";
+              targetHost = "maydayelectronics.com";
               targetUser = "root";
             };
             imports = [ 
-              inputs.self.nixosModules.sffConfig 
-              inputs.self.nixosModules.installHeGames
             ];
           };
         };

@@ -1,5 +1,6 @@
 variable B2_STATE_ACCESS_KEY { type = string }
 variable B2_STATE_SECRET_KEY { type = string }
+variable ssh_public_key { type = string }
 
 terraform {
   backend "s3" {
@@ -37,6 +38,10 @@ terraform {
   }
 }
 
+locals {
+  domain = "maydayelectronics.com"
+}
+
 provider "sops" {}
 
 data "sops_file" "secrets" { 
@@ -44,13 +49,47 @@ data "sops_file" "secrets" {
 }
 
 provider "vultr" {
-  api_key = data.sops_file.secrets.data["vultr_api"]
+  api_key    = data.sops_file.secrets.data["vultr_api"]
   rate_limit = 100
   retry_limit = 3
 }
 
+provider "cloudflare" {
+  api_token = data.sops_file.secrets.data["cloudflare_api_token"]
+}
+
+resource "vultr_ssh_key" "larry" {
+  name    = "larry"
+  ssh_key = var.ssh_public_key
+}
+
 resource "vultr_instance" "web" {
-  label = "Mayday VPS"
-  region = "ewr"
-  plan = "vc2-1c-2gb"
+  label       = "Mayday VPS"
+  region      = "ewr"
+  plan        = "vc2-1c-2gb"
+  os_id       = 477 # Debian 12 — nixos-anywhere will replace this via kexec
+  ssh_key_ids = [vultr_ssh_key.larry.id]
+}
+
+data "cloudflare_zone" "maydayelectronics" {
+  filter = {
+    name = local.domain
+  }
+}
+
+resource "cloudflare_dns_record" "vps" {
+  zone_id = data.cloudflare_zone.maydayelectronics.zone_id
+  name    = "@"
+  type    = "A"
+  content = vultr_instance.web.main_ip
+  ttl     = 60
+  proxied = false # proxied=true blocks SSH; keep DNS-only for colmena/SSH access
+}
+
+output "vps_ip" {
+  value = vultr_instance.web.main_ip
+}
+
+output "vps_hostname" {
+  value = local.domain
 }

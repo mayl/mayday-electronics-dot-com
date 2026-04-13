@@ -10,7 +10,6 @@
     settings.PasswordAuthentication = false;
   };
   programs.mosh.enable = true;
-  environment.systemPackages = with pkgs; [ gitMinimal ];
   nix.settings = {
     trusted-users = [ "@wheel" ];
     experimental-features = [ "nix-command" "flakes" ];
@@ -20,6 +19,7 @@
     efiInstallAsRemovable = true;
   };
   environment.systemPackages = with pkgs; [
+    gitMinimal
     magic-wormhole #for moving wg0.key over
     wireguard-tools #for checking wg status
   ];
