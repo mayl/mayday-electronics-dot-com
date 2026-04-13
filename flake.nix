@@ -63,7 +63,7 @@
             })
           ];
         };
-        colmena = {
+        colmenaHive = inputs.colmena.lib.makeHive {
           meta = {
             nixpkgs = import inputs.nixpkgs {
               system = "x86_64-linux";
@@ -75,7 +75,10 @@
               targetHost = "maydayelectronics.com";
               targetUser = "root";
             };
-            imports = [ 
+            imports = [
+              inputs.self.nixosModules.mayday-vps-config
+              inputs.disko.nixosModules.disko
+              { users.users.root.openssh.authorizedKeys.keyFiles = [ inputs.larrySSH.outPath ]; }
             ];
           };
         };

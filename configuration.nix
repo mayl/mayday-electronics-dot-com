@@ -23,4 +23,28 @@
     magic-wormhole #for moving wg0.key over
     wireguard-tools #for checking wg status
   ];
+
+  networking.firewall.allowedTCPPorts = [ 80 443 ];
+
+  systemd.tmpfiles.rules = [
+    "d /var/log/nginx 0750 nginx nginx -"
+  ];
+
+  services.nginx = {
+    enable = true;
+    virtualHosts."maydayelectronics.com" = {
+      locations."/" = {
+        root = pkgs.writeTextDir "index.html" ''
+          <!DOCTYPE html>
+          <html>
+            <head><title>Mayday Electronics</title></head>
+            <body>
+              <h1>Hello from Mayday Electronics!</h1>
+              <p>VPS is up and colmena deploy works.</p>
+            </body>
+          </html>
+        '';
+      };
+    };
+  };
 }
