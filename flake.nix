@@ -48,38 +48,25 @@
               inputs.disko.nixosModules.disko
               ./configuration.nix
               ./disk-config.nix
+              ./hardware.nix
+              { users.users.root.openssh.authorizedKeys.keyFiles = [ inputs.larrySSH.outPath ]; }
             ];
           };
         };
         nixosConfigurations.mayday-vps = inputs.nixpkgs.lib.nixosSystem {
           system = "x86_64-linux";
-          modules = [
-            inputs.disko.nixosModules.disko
-            ./configuration.nix
-            ./disk-config.nix
-            ./hardware.nix
-            ({
-              users.users.root.openssh.authorizedKeys.keyFiles = [ inputs.larrySSH.outPath ];
-            })
-          ];
+          modules = [ inputs.self.nixosModules.mayday-vps-config ];
         };
         colmenaHive = inputs.colmena.lib.makeHive {
           meta = {
-            nixpkgs = import inputs.nixpkgs {
-              system = "x86_64-linux";
-              overlays = [];
-            };
+            nixpkgs = import inputs.nixpkgs { system = "x86_64-linux"; };
           };
           mayday-vps = {
             deployment = {
               targetHost = "maydayelectronics.com";
               targetUser = "root";
             };
-            imports = [
-              inputs.self.nixosModules.mayday-vps-config
-              inputs.disko.nixosModules.disko
-              { users.users.root.openssh.authorizedKeys.keyFiles = [ inputs.larrySSH.outPath ]; }
-            ];
+            imports = [ inputs.self.nixosModules.mayday-vps-config ];
           };
         };
       };

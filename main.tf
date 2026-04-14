@@ -39,7 +39,8 @@ terraform {
 }
 
 locals {
-  domain = "maydayelectronics.com"
+  domain          = "maydayelectronics.com"
+  debian_12_os_id = 477
 }
 
 provider "sops" {}
@@ -67,7 +68,7 @@ resource "vultr_instance" "web" {
   label       = "Mayday VPS"
   region      = "ewr"
   plan        = "vc2-1c-2gb"
-  os_id       = 477 # Debian 12 — nixos-anywhere will replace this via kexec
+  os_id       = local.debian_12_os_id # nixos-anywhere will replace this via kexec
   ssh_key_ids = [vultr_ssh_key.larry.id]
 }
 
