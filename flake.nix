@@ -26,8 +26,6 @@
       systems = [
         "x86_64-linux"
         "aarch64-linux"
-        "aarch64-darwin"
-        "x86_64-darwin"
       ];
       perSystem =
         {
@@ -48,8 +46,15 @@
               includes = [ "*.tf" ];
             };
           };
-          apps.nixos-anywhere-script.program = "${self'.packages.anywhereScript}";
+          apps = {
+            nixos-anywhere-script.program = "${self'.packages.anywhereScript}";
+            vm = {
+              type = "app";
+              program = "${self'.packages.vm}/bin/run-mayday-vps-vm";
+            };
+          };
           packages = {
+            vm = inputs.self.nixosConfigurations.mayday-vps-vm.config.system.build.vm;
             anywhereScript = (
               (pkgs.writers.writeBash "mayday-vps-init" ''
                 ${pkgs.lib.getExe pkgs.nix} run --refresh github:nix-community/nixos-anywhere -- --flake .#mayday-vps --target-host root@$1
@@ -89,13 +94,44 @@
               ./configuration.nix
               ./disk-config.nix
               ./hardware.nix
-              { users.users.root.openssh.authorizedKeys.keyFiles = [ inputs.larrySSH.outPath ]; }
             ];
           };
         };
         nixosConfigurations.mayday-vps = inputs.nixpkgs.lib.nixosSystem {
           system = "x86_64-linux";
+          specialArgs = { inherit inputs; };
           modules = [ inputs.self.nixosModules.mayday-vps-config ];
+        };
+        nixosConfigurations.mayday-vps-vm = inputs.nixpkgs.lib.nixosSystem {
+          system = "x86_64-linux";
+          specialArgs = { inherit inputs; };
+          modules = [
+            ./configuration.nix
+            "${inputs.nixpkgs}/nixos/modules/virtualisation/qemu-vm.nix"
+            (
+              { lib, ... }:
+              {
+                users.users.root.initialPassword = "root";
+                virtualisation.forwardPorts = [
+                  {
+                    from = "host";
+                    host.port = 8080;
+                    guest.port = 80;
+                  }
+                  {
+                    from = "host";
+                    host.port = 2222;
+                    guest.port = 22;
+                  }
+                ];
+                services.nginx.virtualHosts."maydayelectronics.com" = {
+                  enableACME = lib.mkForce false;
+                  forceSSL = lib.mkForce false;
+                  serverAliases = [ "localhost" ];
+                };
+              }
+            )
+          ];
         };
         colmenaHive = inputs.colmena.lib.makeHive {
           meta = {

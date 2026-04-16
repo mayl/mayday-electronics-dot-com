@@ -1,6 +1,7 @@
 {
   pkgs,
   lib,
+  inputs,
   ...
 }:
 {
@@ -11,6 +12,7 @@
     enable = true;
     settings.PasswordAuthentication = false;
   };
+  users.users.root.openssh.authorizedKeys.keyFiles = [ inputs.larrySSH.outPath ];
   programs.mosh.enable = true;
   nix.settings = {
     trusted-users = [ "@wheel" ];
