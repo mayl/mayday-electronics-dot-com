@@ -1,6 +1,8 @@
-{ pkgs,
+{
+  pkgs,
   lib,
-  ... }:
+  ...
+}:
 {
   nixpkgs.system = "x86_64-linux";
   networking.hostName = "mayday-vps";
@@ -12,7 +14,10 @@
   programs.mosh.enable = true;
   nix.settings = {
     trusted-users = [ "@wheel" ];
-    experimental-features = [ "nix-command" "flakes" ];
+    experimental-features = [
+      "nix-command"
+      "flakes"
+    ];
   };
   boot.loader.grub = {
     efiSupport = true;
@@ -20,11 +25,14 @@
   };
   environment.systemPackages = with pkgs; [
     gitMinimal
-    magic-wormhole #for moving wg0.key over
-    wireguard-tools #for checking wg status
+    magic-wormhole # for moving wg0.key over
+    wireguard-tools # for checking wg status
   ];
 
-  networking.firewall.allowedTCPPorts = [ 80 443 ];
+  networking.firewall.allowedTCPPorts = [
+    80
+    443
+  ];
 
   systemd.tmpfiles.rules = [
     "d /var/log/nginx 0750 nginx nginx -"
