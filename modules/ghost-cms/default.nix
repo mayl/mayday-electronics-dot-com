@@ -6,6 +6,18 @@
 }:
 let
   cfg = config.services.ghost-cms;
+  resticWrapper = pkgs.writeShellApplication {
+    name = "ghost-restic";
+    runtimeInputs = [ pkgs.restic ];
+    text = ''
+      AWS_ACCESS_KEY_ID=$(cat ${config.sops.secrets.${cfg.sopsSecretPaths.backupAccessKey}.path})
+      AWS_SECRET_ACCESS_KEY=$(cat ${config.sops.secrets.${cfg.sopsSecretPaths.backupSecretKey}.path})
+      export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+      export RESTIC_REPOSITORY="s3:${cfg.backup.endpoint}/${cfg.backup.bucket}"
+      export RESTIC_PASSWORD_FILE="${config.sops.secrets.${cfg.sopsSecretPaths.resticPassword}.path}"
+      exec restic "$@"
+    '';
+  };
 in
 {
   options.services.ghost-cms = {
@@ -93,6 +105,8 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    environment.systemPackages = [ resticWrapper ];
+
     networking.firewall.allowedTCPPorts = [
       80
       443
