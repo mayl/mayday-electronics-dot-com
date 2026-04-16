@@ -1,6 +1,11 @@
 keys:
-  - &age_key age1gddn2phwwrmwvwytrhf063nddgm7w3my8m8k0chg37j97hndpqmsalgsy8
+  - &age_key age1rwf07gsmuvr2ks03hrlzywlsfh7z4jy6z35pnqpgdnhx0hxh65tqjk6cug
+  - &age_dev_key age13u5m8rlt09tq6p9teluh3rv63dehs64nx8n50pmm4pjgdzzm34qsmxxf77
 creation_rules:
+  - path_regex: secrets/dev-secrets\.yaml$
+    key_groups:
+      - age:
+        - *age_dev_key
   - path_regex: secrets/[^/]+\.yaml$
     key_groups:
       - age:

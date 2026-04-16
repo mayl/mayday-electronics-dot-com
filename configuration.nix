@@ -27,7 +27,7 @@
   };
   environment.systemPackages = with pkgs; [
     gitMinimal
-    magic-wormhole # for moving wg0.key over
+    magic-wormhole # for moving wg0.key / sops age key over
     wireguard-tools # for checking wg status
   ];
 
@@ -45,23 +45,22 @@
     defaults.email = "larry@maydayelectronics.com";
   };
 
-  services.nginx = {
+  services.nginx.enable = true;
+
+  sops.defaultSopsFile = ./secrets/secrets.yaml;
+  sops.age.keyFile = "/var/lib/sops-nix/key.txt";
+
+  services.ghost-cms = {
     enable = true;
-    virtualHosts."maydayelectronics.com" = {
-      enableACME = true;
-      forceSSL = true;
-      locations."/" = {
-        root = pkgs.writeTextDir "index.html" ''
-          <!DOCTYPE html>
-          <html>
-            <head><title>Mayday Electronics</title></head>
-            <body>
-              <h1>Hello from Mayday Electronics!</h1>
-              <p>VPS is up and colmena deploy works.</p>
-            </body>
-          </html>
-        '';
-      };
+    domain = "maydayelectronics.com";
+    backup.bucket = "mayday-electronics-dot-com-backup";
+    sopsSecretPaths = {
+      dbPassword = "ghost/db_password";
+      resticPassword = "restic/password";
+      backupAccessKey = "b2/backup/access_key";
+      backupSecretKey = "b2/backup/secret_key";
+      smtpUser = "ghost/smtp_user";
+      smtpPassword = "ghost/smtp_password";
     };
   };
 }

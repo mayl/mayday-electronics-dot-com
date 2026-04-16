@@ -17,6 +17,10 @@
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    sops-nix = {
+      url = "github:Mic92/sops-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -52,9 +56,37 @@
               type = "app";
               program = "${self'.packages.vm}/bin/run-mayday-vps-vm";
             };
+            update-ghost-image = {
+              type = "app";
+              program = "${
+                pkgs.writeShellApplication {
+                  name = "update-ghost-image";
+                  runtimeInputs = [ pkgs.nix-prefetch-docker ];
+                  text = builtins.readFile ./apps/update-ghost-image.sh;
+                }
+              }/bin/update-ghost-image";
+            };
+            edit-dev-secrets = {
+              type = "app";
+              program = "${
+                pkgs.writeShellApplication {
+                  name = "edit-dev-secrets";
+                  runtimeInputs = [ pkgs.sops ];
+                  text = ''
+                    if [[ ! -f flake.nix ]]; then
+                      echo "error: run from the flake root" >&2
+                      exit 1
+                    fi
+                    export SOPS_AGE_KEY_FILE="$PWD/secrets/dev-age-key.txt"
+                    exec sops secrets/dev-secrets.yaml
+                  '';
+                }
+              }/bin/edit-dev-secrets";
+            };
           };
           packages = {
             vm = inputs.self.nixosConfigurations.mayday-vps-vm.config.system.build.vm;
+            ghost-image = pkgs.callPackage ./modules/ghost-cms/image.nix { };
             anywhereScript = (
               (pkgs.writers.writeBash "mayday-vps-init" ''
                 ${pkgs.lib.getExe pkgs.nix} run --refresh github:nix-community/nixos-anywhere -- --flake .#mayday-vps --target-host root@$1
@@ -88,9 +120,20 @@
         };
       flake = {
         nixosModules = {
+          ghost-cms = ./modules/ghost-cms;
           mayday-vps-config = {
             _module.args = { inherit inputs; };
-            imports = [ ./configuration.nix ];
+            imports = [
+              ./configuration.nix
+              inputs.self.nixosModules.ghost-cms
+              inputs.sops-nix.nixosModules.sops
+              (
+                { pkgs, ... }:
+                {
+                  services.ghost-cms.imageFile = pkgs.callPackage ./modules/ghost-cms/image.nix { };
+                }
+              )
+            ];
           };
           mayday-vps = {
             imports = [
@@ -114,6 +157,8 @@
               { lib, ... }:
               {
                 users.users.root.initialPassword = "root";
+                virtualisation.diskSize = 8192;
+                virtualisation.memorySize = 2048;
                 virtualisation.forwardPorts = [
                   {
                     from = "host";
@@ -126,10 +171,16 @@
                     guest.port = 22;
                   }
                 ];
-                services.nginx.virtualHosts."maydayelectronics.com" = {
-                  enableACME = lib.mkForce false;
-                  forceSSL = lib.mkForce false;
-                  serverAliases = [ "localhost" ];
+                services.ghost-cms = {
+                  tls = lib.mkForce false;
+                  domain = lib.mkForce "localhost";
+                  url = lib.mkForce "http://localhost:8080";
+                };
+                sops.age.keyFile = lib.mkForce "/etc/sops-nix-dev/key.txt";
+                sops.defaultSopsFile = lib.mkForce ./secrets/dev-secrets.yaml;
+                environment.etc."sops-nix-dev/key.txt" = {
+                  source = ./secrets/dev-age-key.txt;
+                  mode = "0400";
                 };
               }
             )
@@ -143,6 +194,15 @@
             deployment = {
               targetHost = "maydayelectronics.com";
               targetUser = "root";
+              keys."sops-age-key" = {
+                keyFile = "/home/larry/.config/sops/age/mayday-vps.txt";
+                destDir = "/var/lib/sops-nix";
+                name = "key.txt";
+                user = "root";
+                group = "root";
+                permissions = "0400";
+                uploadAt = "pre-activation";
+              };
             };
             imports = [ inputs.self.nixosModules.mayday-vps ];
           };
