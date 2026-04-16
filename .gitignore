@@ -3,7 +3,6 @@
 # Local .editor conf folders
 .idea
 *.iml
-# **/packer/
 **certs/
 **temp/
 # .tfstate files

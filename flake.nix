@@ -1,5 +1,5 @@
 {
-  description = "Description for the project";
+  description = "Mayday Electronics VPS infrastructure";
 
   inputs = {
     colmena.url = "github:zhaofengli/colmena";
@@ -22,7 +22,7 @@
       perSystem = { config, self', inputs', pkgs, system, ... }: {
         apps.nixos-anywhere-script.program = "${self'.packages.anywhereScript}";
         packages = {
-          anywhereScript = ((pkgs.writers.writeBash "setupSff" ''
+          anywhereScript = ((pkgs.writers.writeBash "mayday-vps-init" ''
             ${pkgs.lib.getExe pkgs.nix} run --refresh github:nix-community/nixos-anywhere -- --flake .#mayday-vps --target-host root@$1
           '').overrideAttrs { pname = "nixos-anywhere-host"; });
         };

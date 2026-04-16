@@ -1,4 +1,4 @@
-# Example to create a bios compatible gpt partition
+# GPT disk layout for Mayday VPS: BIOS boot + ESP + LVM root
 { lib, ... }:
 {
   disko.devices = {

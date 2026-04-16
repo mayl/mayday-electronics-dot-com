@@ -27,10 +27,6 @@ terraform {
       source = "vultr/vultr"
       version = "2.28.0"
     }
-    namecheap = {
-      source = "namecheap/namecheap"
-      version = "2.2.0"
-    }
     sops = {
       source = "carlpett/sops"
       version = "1.3.0"
