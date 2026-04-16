@@ -89,9 +89,13 @@
       flake = {
         nixosModules = {
           mayday-vps-config = {
+            _module.args = { inherit inputs; };
+            imports = [ ./configuration.nix ];
+          };
+          mayday-vps = {
             imports = [
+              inputs.self.nixosModules.mayday-vps-config
               inputs.disko.nixosModules.disko
-              ./configuration.nix
               ./disk-config.nix
               ./hardware.nix
             ];
@@ -99,14 +103,12 @@
         };
         nixosConfigurations.mayday-vps = inputs.nixpkgs.lib.nixosSystem {
           system = "x86_64-linux";
-          specialArgs = { inherit inputs; };
-          modules = [ inputs.self.nixosModules.mayday-vps-config ];
+          modules = [ inputs.self.nixosModules.mayday-vps ];
         };
         nixosConfigurations.mayday-vps-vm = inputs.nixpkgs.lib.nixosSystem {
           system = "x86_64-linux";
-          specialArgs = { inherit inputs; };
           modules = [
-            ./configuration.nix
+            inputs.self.nixosModules.mayday-vps-config
             "${inputs.nixpkgs}/nixos/modules/virtualisation/qemu-vm.nix"
             (
               { lib, ... }:
@@ -142,7 +144,7 @@
               targetHost = "maydayelectronics.com";
               targetUser = "root";
             };
-            imports = [ inputs.self.nixosModules.mayday-vps-config ];
+            imports = [ inputs.self.nixosModules.mayday-vps ];
           };
         };
       };
