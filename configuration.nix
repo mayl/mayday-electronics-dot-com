@@ -5,6 +5,7 @@
   ...
 }:
 {
+  imports = [ ./mailserver.nix ];
   nixpkgs.system = "x86_64-linux";
   networking.hostName = "mayday-vps";
   system.name = "mayday-vps";
@@ -53,6 +54,10 @@
   services.ghost-cms = {
     enable = true;
     domain = "maydayelectronics.com";
+    smtpHost = "127.0.0.1";
+    smtpPort = 587;
+    smtpServername = "mx.maydayelectronics.com";
+    mailFrom = "Mayday Electronics <ghost@maydayelectronics.com>";
     backup.bucket = "mayday-electronics-dot-com-backup";
     sopsSecretPaths = {
       dbPassword = "ghost/db_password";

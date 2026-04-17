@@ -65,6 +65,40 @@ in
       description = "Host directory for Ghost content (themes, images, settings).";
     };
 
+    smtpHost = lib.mkOption {
+      type = lib.types.str;
+      default = "";
+      description = "Outbound SMTP relay host. Empty disables outbound mail.";
+    };
+
+    smtpPort = lib.mkOption {
+      type = lib.types.int;
+      default = 587;
+      description = "Outbound SMTP relay port.";
+    };
+
+    smtpServername = lib.mkOption {
+      type = lib.types.str;
+      default = "";
+      description = ''
+        TLS SNI / expected certificate CN. Set this when smtpHost is a loopback
+        address but the relay presents a cert for a real hostname (e.g. dial
+        127.0.0.1 but the Postfix cert is for mx.example.com). Empty disables
+        the override and nodemailer validates against smtpHost.
+      '';
+    };
+
+    mailFrom = lib.mkOption {
+      type = lib.types.str;
+      default = "";
+      example = "Mayday Electronics <ghost@example.com>";
+      description = ''
+        Default From: address for Ghost-originated mail (invites, password
+        resets, member magic links). Empty lets Ghost generate a fallback
+        address and emit a warning.
+      '';
+    };
+
     backup = {
       enable = lib.mkOption {
         type = lib.types.bool;
@@ -190,9 +224,15 @@ in
         server__host = "127.0.0.1";
         server__port = "2368";
         mail__transport = "SMTP";
-        mail__options__host = "";
-        mail__options__port = "587";
+        mail__options__host = cfg.smtpHost;
+        mail__options__port = toString cfg.smtpPort;
         mail__options__secure = "false";
+      }
+      // lib.optionalAttrs (cfg.smtpServername != "") {
+        mail__options__tls__servername = cfg.smtpServername;
+      }
+      // lib.optionalAttrs (cfg.mailFrom != "") {
+        mail__from = cfg.mailFrom;
       };
       environmentFiles = [ config.sops.templates."ghost-cms.env".path ];
       volumes = [ "${cfg.stateDir}/content:/var/lib/ghost/content" ];

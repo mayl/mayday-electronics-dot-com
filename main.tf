@@ -1,6 +1,11 @@
 variable "B2_STATE_ACCESS_KEY" { type = string }
 variable "B2_STATE_SECRET_KEY" { type = string }
 variable "ssh_public_key" { type = string }
+variable "dkim_public_key" {
+  type        = string
+  description = "mail._domainkey TXT record content, captured from /var/dkim after first mailserver deploy."
+  default     = ""
+}
 
 terraform {
   backend "s3" {
@@ -81,6 +86,55 @@ resource "cloudflare_dns_record" "vps" {
   content = vultr_instance.web.main_ip
   ttl     = 60
   proxied = false # proxied=true blocks SSH; keep DNS-only for colmena/SSH access
+}
+
+resource "cloudflare_dns_record" "mx_a" {
+  zone_id = data.cloudflare_zone.maydayelectronics.zone_id
+  name    = "mx"
+  type    = "A"
+  content = vultr_instance.web.main_ip
+  ttl     = 300
+  proxied = false
+}
+
+resource "cloudflare_dns_record" "mx" {
+  zone_id  = data.cloudflare_zone.maydayelectronics.zone_id
+  name     = "@"
+  type     = "MX"
+  content  = "mx.${local.domain}"
+  priority = 10
+  ttl      = 300
+}
+
+resource "cloudflare_dns_record" "spf" {
+  zone_id = data.cloudflare_zone.maydayelectronics.zone_id
+  name    = "@"
+  type    = "TXT"
+  content = "\"v=spf1 mx -all\""
+  ttl     = 300
+}
+
+resource "cloudflare_dns_record" "dmarc" {
+  zone_id = data.cloudflare_zone.maydayelectronics.zone_id
+  name    = "_dmarc"
+  type    = "TXT"
+  content = "\"v=DMARC1; p=none; rua=mailto:postmaster@${local.domain}; adkim=s; aspf=s\""
+  ttl     = 300
+}
+
+resource "cloudflare_dns_record" "dkim" {
+  count   = var.dkim_public_key == "" ? 0 : 1
+  zone_id = data.cloudflare_zone.maydayelectronics.zone_id
+  name    = "mail._domainkey"
+  type    = "TXT"
+  content = var.dkim_public_key
+  ttl     = 300
+}
+
+resource "vultr_reverse_ipv4" "mx" {
+  instance_id = vultr_instance.web.id
+  ip          = vultr_instance.web.main_ip
+  reverse     = "mx.${local.domain}"
 }
 
 output "vps_ip" {
