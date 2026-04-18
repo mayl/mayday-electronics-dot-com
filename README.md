@@ -125,18 +125,74 @@ shared with nginx via `certificateScheme = "acme-nginx"`.
 
 ### Setting / updating a mailbox password
 
-```
-nix run .#update-email-password -- larry       # or dan | ghost | catchall
+```bash
+nix run .#mail-admin -- set-password larry     # or dan | ghost | catchall
 ```
 
-Prompts for a password, bcrypts it via `mkpasswd`, writes it to
-`secrets/secrets.yaml` at `mail.<mailbox>.hashedPassword` using
-`sops set --value-stdin` (so shell metacharacters in the hash don't need
-escaping). For the `ghost` mailbox it also updates `ghost.smtp_user` and
-`ghost.smtp_password` (plaintext) so the Ghost container can auth against
-Postfix.
+Prompts for a new password, bcrypts it, and writes it to
+`secrets/secrets.yaml` at `mail.<mailbox>.hashedPassword` via
+`sops set --value-stdin`. For the `ghost` mailbox it also updates
+`ghost.smtp_user` and `ghost.smtp_password` (plaintext) so the Ghost
+container can auth against Postfix.
 
-Deploy the new password with `colmena apply mayday-vps`.
+Deploy the new hash with `colmena apply mayday-vps`. This only changes
+the IMAP login password — the mailbox's at-rest encryption key is
+wrapped by a separate per-mailbox `cryptPassword` and is untouched.
+
+### Encryption at rest (Dovecot mail_crypt)
+
+Dovecot's `mail_crypt` plugin encrypts each message on delivery using the
+recipient mailbox's public key. Reading mail (IMAP FETCH) unwraps the
+private key using a per-mailbox password stored in sops at
+`mail.<mbx>.cryptPassword`. sops-nix renders a passwd-file-format
+template at `/run/secrets/rendered/mail-userdb-extras` that dovecot
+stacks ahead of simple-nixos-mailserver's userdb and merges
+`mail_crypt_private_password` into each user lookup. Mail already on
+disk from before the plugin was enabled stays plaintext; only new
+deliveries are encrypted.
+
+Decoupling `cryptPassword` from the IMAP password means rotating the
+IMAP password never touches on-disk keys — no re-wrap, no risk of
+drifting the two apart. The tradeoff is that anyone with access to
+`secrets/secrets.yaml` and the VPS filesystem can decrypt mail, so the
+primary protection this buys you is against a compromised backup or
+stolen disk image without the sops key.
+
+**First-time bootstrap** (run once after `colmena apply` enables the plugin):
+
+```bash
+nix run .#mail-admin -- all
+```
+
+Press `b` at each mailbox prompt to run `bootstrap-key`, which generates
+a fresh random `cryptPassword` in sops (if missing) and then generates
+the on-disk key wrapped with it (or verifies an existing key still
+unwraps). `larry@` and `dan@` would auto-generate a key on first IMAP
+login anyway, but `catchall@` and `ghost@` are real mailboxes nobody
+logs into interactively, so the walker is the simplest way to bootstrap
+every mailbox in one pass. Shared aliases (`support@`, `sales@`,
+`hello@`) are rewritten by Postfix to `larry@` / `dan@` before LMTP
+delivery, so they inherit those users' keys — no separate bootstrap
+needed.
+
+After bootstrap, `colmena apply mayday-vps` to ship the new
+`cryptPassword` entries so dovecot can unwrap keys on future IMAP
+sessions.
+
+**Drift recovery** — if the sops `cryptPassword` and the on-disk key are
+out of sync (e.g., after a manual sops edit or restoring a stale
+backup):
+
+```bash
+nix run .#mail-admin -- bootstrap-key larry
+```
+
+Idempotent: verifies the current sops password unwraps the existing
+key, or generates a fresh key if none exists. If the key exists but
+won't unwrap with the sops password, the tool errors out — recover by
+restoring the correct sops value from git history or by wiping the
+mailbox's on-disk key and re-bootstrapping (destroys any mail
+encrypted under the old key).
 
 ### DKIM — two-pass deploy
 
@@ -181,10 +237,12 @@ ghost:
 restic:
   password: …          # restic repo password
 mail:
-  larry:    { hashedPassword: $2b$… }   # bcrypt; managed via update-email-password
-  dan:      { hashedPassword: $2b$… }
-  ghost:    { hashedPassword: $2b$… }
-  catchall: { hashedPassword: $2b$… }
+  larry:
+    hashedPassword: $2b$…     # bcrypt; IMAP login, managed via mail-admin set-password
+    cryptPassword: …          # random; wraps on-disk crypt key, managed via mail-admin bootstrap-key
+  dan:      { hashedPassword: …, cryptPassword: … }
+  ghost:    { hashedPassword: …, cryptPassword: … }
+  catchall: { hashedPassword: …, cryptPassword: … }
 dkim:
   public_key: "v=DKIM1; k=rsa; p=…"     # managed via update-dkim-key
 ```

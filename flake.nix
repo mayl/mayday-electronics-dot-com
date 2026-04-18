@@ -48,6 +48,7 @@
           treefmt.config = {
             projectRootFile = "flake.nix";
             programs.nixfmt.enable = true;
+            programs.ruff-format.enable = true;
             settings.formatter.opentofu = {
               command = pkgs.lib.getExe pkgs.opentofu;
               options = [ "fmt" ];
@@ -80,9 +81,9 @@
                 }
               }/bin/generate-mail-hash";
             };
-            update-email-password = {
+            mail-admin = {
               type = "app";
-              program = pkgs.lib.getExe self'.packages.update-email-password;
+              program = pkgs.lib.getExe self'.packages.mail-admin;
             };
             update-dkim-key = {
               type = "app";
@@ -106,10 +107,14 @@
               }/bin/edit-dev-secrets";
             };
           };
+          checks.mail-crypt = import ./tests/mail-crypt.nix {
+            inherit pkgs;
+            self = inputs.self;
+          };
           packages = {
             vm = inputs.self.nixosConfigurations.mayday-vps-vm.config.system.build.vm;
             ghost-image = pkgs.callPackage ./modules/ghost-cms/image.nix { };
-            update-email-password = pkgs.callPackage ./apps/update-email-password.nix { };
+            mail-admin = pkgs.callPackage ./apps/mail-admin.nix { };
             update-dkim-key = pkgs.callPackage ./apps/update-dkim-key.nix { };
             anywhereScript = (
               (pkgs.writers.writeBash "mayday-vps-init" ''

@@ -6,7 +6,6 @@
 }:
 {
   imports = [ ./mailserver.nix ];
-  nixpkgs.system = "x86_64-linux";
   networking.hostName = "mayday-vps";
   system.name = "mayday-vps";
   services.openssh = {
