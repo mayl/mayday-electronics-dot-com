@@ -108,6 +108,18 @@ def do_set_password(mbx: str) -> None:
     print(f"Updated IMAP password for {mbx}. Run 'colmena apply mayday-vps' to deploy.")
 
 
+def do_init_crypt_passwords() -> None:
+    for mbx in list_mailboxes():
+        pw = load_sops_value("mail", mbx, "cryptPassword")
+        if pw is not None:
+            print(f"{mbx}: cryptPassword already set, skipping")
+            continue
+        pw = secrets.token_urlsafe(24)
+        write_sops(_sops_path("mail", mbx, "cryptPassword"), pw)
+        print(f"{mbx}: generated cryptPassword")
+    print("Run 'colmena apply' then 'mail-admin all' to bootstrap the doveadm keys.")
+
+
 def do_bootstrap_key(mbx: str) -> None:
     addr = addr_of(mbx)
     pw = load_sops_value("mail", mbx, "cryptPassword")
@@ -204,6 +216,7 @@ def main() -> None:
     sp = sub.add_parser("bootstrap-key")
     sp.add_argument("mbx")
     sub.add_parser("all")
+    sub.add_parser("init-crypt-passwords")
 
     args = parser.parse_args()
 
@@ -214,6 +227,8 @@ def main() -> None:
             do_bootstrap_key(args.mbx)
         elif args.cmd == "all":
             do_all()
+        elif args.cmd == "init-crypt-passwords":
+            do_init_crypt_passwords()
     except USER_ERRORS as e:
         print(f"error: {e}", file=sys.stderr)
         sys.exit(1)
