@@ -50,6 +50,11 @@ bd close <id>         # Complete work
 - If push fails, resolve and retry until it succeeds
 <!-- END BEADS INTEGRATION -->
 
+### Accessing `bd`
+
+`bd` is not installed globally — it lives in this project's Nix devshell. The repo ships an `.envrc` (`use flake`), so if you have `direnv` hooked into your shell, `bd` is on PATH automatically inside the project directory (`direnv allow` once).
+
+If direnv isn't active, fall back to `nix develop --command bd ...`.
 
 ## Build & Test
 

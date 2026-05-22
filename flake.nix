@@ -25,6 +25,7 @@
       url = "gitlab:simple-nixos-mailserver/nixos-mailserver/nixos-25.11";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    beads.url = "github:gastownhall/beads";
   };
 
   outputs =
@@ -129,6 +130,7 @@
               sops
               swaks
               inputs'.colmena.packages.colmena
+              inputs'.beads.packages.default
               config.treefmt.build.wrapper
             ];
             shellHook = ''
