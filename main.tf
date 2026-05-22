@@ -118,7 +118,7 @@ resource "cloudflare_dns_record" "dmarc" {
   zone_id = data.cloudflare_zone.maydayelectronics.zone_id
   name    = "_dmarc"
   type    = "TXT"
-  content = "\"v=DMARC1; p=none; rua=mailto:postmaster@${local.domain}; adkim=s; aspf=s\""
+  content = "\"v=DMARC1; p=quarantine; pct=25; rua=mailto:postmaster@${local.domain}; adkim=s; aspf=s\""
   ttl     = 300
 }
 
