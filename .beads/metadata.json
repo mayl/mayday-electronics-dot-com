@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "mayday_electronics_dot_com",
+  "project_id": "47f02716-04b6-4f2e-9d70-1a3ff52e7206"
+}
